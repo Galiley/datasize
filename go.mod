@@ -1,1 +1,1 @@
-module github.com/c2h5oh/datasize
+module github.com/Galiley/datasize

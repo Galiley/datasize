@@ -1,6 +1,10 @@
-# datasize [![Build Status](https://travis-ci.org/c2h5oh/datasize.svg?branch=master)](https://travis-ci.org/c2h5oh/datasize)
+# datasize
 
-Golang helpers for data sizes
+[![Go Reference](https://pkg.go.dev/badge/image)](https://pkg.go.dev/github.com/Galiley/datasize)
+[![Go Report](https://goreportcard.com/badge/github.com/Galiley/datasize)](https://goreportcard.com/report/github.com/Galiley/datasize)
+[![CI](https://github.com/Galiley/datasize/actions/workflows/on-push.yaml/badge.svg)](https://github.com/Galiley/datasize/actions/workflows/on-push.yaml)
+
+Golang helpers for data sizes. This is a fork from [github.com/c2h5oh/datasize](https://github.com/c2h5oh/datasize) that handle size with decimal values
 
 ### Constants
 

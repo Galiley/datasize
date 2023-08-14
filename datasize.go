@@ -68,7 +68,7 @@ func (b ByteSize) EBytes() float64 {
 func (b ByteSize) String() string {
 	switch {
 	case b == 0:
-		return fmt.Sprint("0B")
+		return "0B"
 	case b%EB == 0:
 		return fmt.Sprintf("%dEB", b/EB)
 	case b%PB == 0:
@@ -116,6 +116,11 @@ func (b ByteSize) MarshalText() ([]byte, error) {
 func (b *ByteSize) UnmarshalText(t []byte) error {
 	var val uint64
 	var unit string
+	var unitUint64 uint64 = 1
+
+	hasDecimal := false
+	var decimal uint64
+	var power uint64 = 1
 
 	// copy for error message
 	t0 := t
@@ -128,20 +133,41 @@ ParseLoop:
 		c = t[i]
 		switch {
 		case '0' <= c && c <= '9':
-			if val > cutoff {
-				goto Overflow
-			}
+			if !hasDecimal {
+				if val > cutoff {
+					goto Overflow
+				}
 
-			c = c - '0'
-			val *= 10
+				c = c - '0'
+				val *= 10
 
-			if val > val+uint64(c) {
-				// val+v overflows
-				goto Overflow
+				if val > val+uint64(c) {
+					// val+v overflows
+					goto Overflow
+				}
+				val += uint64(c)
+			} else {
+				if decimal > cutoff {
+					goto Overflow
+				}
+
+				c = c - '0'
+				decimal *= 10
+
+				if decimal > decimal+uint64(c) {
+					// decimal+v overflows
+					goto Overflow
+				}
+				decimal += uint64(c)
+				power *= 10
 			}
-			val += uint64(c)
 			i++
-
+		case c == '.':
+			if hasDecimal {
+				goto SyntaxError
+			}
+			hasDecimal = true
+			i++
 		default:
 			if i == 0 {
 				goto SyntaxError
@@ -157,63 +183,74 @@ ParseLoop:
 	}
 	unit = strings.ToLower(unit)
 	switch unit {
-	case "", "b", "byte":
+	case "", "b", "byte", "bytes":
 		// do nothing - already in bytes
 
-	case "k", "kb", "kilo", "kilobyte", "kilobytes":
+	case "k", "kb", "kib", "kilo", "kilobyte", "kilobytes":
 		if val > maxUint64/uint64(KB) {
 			goto Overflow
 		}
-		val *= uint64(KB)
+		unitUint64 = uint64(KB)
+		val *= unitUint64
 
-	case "m", "mb", "mega", "megabyte", "megabytes":
+	case "m", "mb", "mib", "mega", "megabyte", "megabytes":
 		if val > maxUint64/uint64(MB) {
 			goto Overflow
 		}
-		val *= uint64(MB)
+		unitUint64 = uint64(MB)
+		val *= unitUint64
 
-	case "g", "gb", "giga", "gigabyte", "gigabytes":
+	case "g", "gb", "gib", "giga", "gigabyte", "gigabytes":
 		if val > maxUint64/uint64(GB) {
 			goto Overflow
 		}
-		val *= uint64(GB)
+		unitUint64 = uint64(GB)
+		val *= unitUint64
 
-	case "t", "tb", "tera", "terabyte", "terabytes":
+	case "t", "tb", "tib", "tera", "terabyte", "terabytes":
 		if val > maxUint64/uint64(TB) {
 			goto Overflow
 		}
-		val *= uint64(TB)
+		unitUint64 = uint64(TB)
+		val *= unitUint64
 
-	case "p", "pb", "peta", "petabyte", "petabytes":
+	case "p", "pb", "pib", "peta", "petabyte", "petabytes":
 		if val > maxUint64/uint64(PB) {
 			goto Overflow
 		}
-		val *= uint64(PB)
+		unitUint64 = uint64(PB)
+		val *= unitUint64
 
-	case "E", "EB", "e", "eb", "eB":
+	case "e", "eb", "eib", "exa", "exabyte", "exabytes":
 		if val > maxUint64/uint64(EB) {
 			goto Overflow
 		}
-		val *= uint64(EB)
+		unitUint64 = uint64(EB)
+		val *= unitUint64
 
 	default:
 		goto SyntaxError
 	}
 
-	*b = ByteSize(val)
+	decimal = uint64(float64(decimal*unitUint64) / float64(power))
+	if decimal > maxUint64/unitUint64 {
+		goto Overflow
+	}
+
+	*b = ByteSize(val + decimal)
 	return nil
 
 Overflow:
 	*b = ByteSize(maxUint64)
-	return &strconv.NumError{fnUnmarshalText, string(t0), strconv.ErrRange}
+	return &strconv.NumError{Func: fnUnmarshalText, Num: string(t0), Err: strconv.ErrRange}
 
 SyntaxError:
 	*b = 0
-	return &strconv.NumError{fnUnmarshalText, string(t0), strconv.ErrSyntax}
+	return &strconv.NumError{Func: fnUnmarshalText, Num: string(t0), Err: strconv.ErrSyntax}
 
 BitsError:
 	*b = 0
-	return &strconv.NumError{fnUnmarshalText, string(t0), ErrBits}
+	return &strconv.NumError{Func: fnUnmarshalText, Num: string(t0), Err: ErrBits}
 }
 
 func Parse(t []byte) (ByteSize, error) {

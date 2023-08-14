@@ -1,9 +1,7 @@
-package datasize_test
+package datasize
 
 import (
 	"testing"
-
-	. "github.com/c2h5oh/datasize"
 )
 
 func TestMarshalText(t *testing.T) {
@@ -56,6 +54,8 @@ func TestUnmarshalText(t *testing.T) {
 		{"g", true, ByteSize(0)},
 		{"10 kB ", false, 10 * KB},
 		{"10 kBs ", true, ByteSize(0)},
+		{"1.1.1.1 KB", true, ByteSize(0)},
+		{"10.5 MB", false, ByteSize(uint64(10*MB) + uint64(float64(MB/2)))},
 	}
 
 	for _, tt := range table {

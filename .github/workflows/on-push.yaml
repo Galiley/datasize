@@ -1,0 +1,63 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    branches:
+      - master
+
+jobs:
+  test:
+    name: Test
+    strategy:
+      fail-fast: false
+    runs-on: ubuntu-latest
+    steps:
+    - name: Install Go
+      uses: actions/setup-go@v4
+      with:
+        go-version: 1.21.x
+    - name: Checkout code
+      uses: actions/checkout@v3
+    - name: Test
+      run: go test -coverprofile=coverage.txt -covermode count ./...
+    - name: Coverage
+      run: |
+        go install github.com/richardlt/gocover-cobertura@latest
+        gocover-cobertura < coverage.txt > coverage.xml
+    - name: Code Coverage Report
+      uses: irongut/CodeCoverageSummary@v1.3.0
+      with:
+        filename: coverage.xml
+        badge: true
+        format: markdown
+        hide_complexity: true
+        indicators: true
+        output: both
+        thresholds: '60 80'
+    - name: Output to Job Summary
+      run: cat code-coverage-results.md >> $GITHUB_STEP_SUMMARY
+
+    - name: Add Coverage PR Comment
+      uses: marocchino/sticky-pull-request-comment@v2
+      if: github.event_name == 'pull_request'
+      with:
+        recreate: true
+        path: code-coverage-results.md
+
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: 1.21.x
+      - name: Checkout code
+        uses: actions/checkout@v3
+      - name: GolangCI-Lint
+        uses: golangci/golangci-lint-action@v3
+        with:
+          version: v1.52.2
